@@ -6,8 +6,10 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from dotenv import load_dotenv
 
+
 # Load environment variables
 load_dotenv()
+
 
 # Setup logging
 logging.basicConfig(
@@ -16,13 +18,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # Get config from environment
 WEBSITE_URL = os.getenv('WEBSITE_URL', 'https://get-your-content.netlify.app')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
+
 if not TELEGRAM_BOT_TOKEN:
     logger.error("❌ TELEGRAM_BOT_TOKEN not found in environment variables")
     exit(1)
+
 
 # Load sites database
 def load_sites_database():
@@ -30,7 +35,9 @@ def load_sites_database():
     with open(db_path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
+
 SITES_DATABASE = load_sites_database()
+
 
 # Category mapping with emojis
 CATEGORY_MAP = {
@@ -45,10 +52,12 @@ CATEGORY_MAP = {
     'adult': '🔞 Adult'
 }
 
+
 # Adult categories that require 18+ verification
 ADULT_CATEGORIES = {
     'hentai', 'jav', 'adult', 'onlyfans_leak', 'desi_webseries'
 }
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when /start is issued."""
@@ -69,6 +78,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(welcome_text, parse_mode='HTML')
     logger.info(f"User {update.effective_user.id} started the bot")
+
 
 async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle user search query with better UI."""
@@ -114,6 +124,7 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         parse_mode='HTML'
     )
     logger.info(f"User {update.effective_user.id} searched for: {query}")
+
 
 async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle category selection."""
@@ -227,6 +238,7 @@ async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             parse_mode='HTML'
         )
 
+
 def main() -> None:
     """Start the bot."""
     logger.info("🚀 Starting bot...")
@@ -242,6 +254,7 @@ def main() -> None:
     # Run the bot
     logger.info("✅ Bot is polling...")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == '__main__':
     main()
