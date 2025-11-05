@@ -127,7 +127,10 @@ function startCountdown() {
       progressFill.style.width = ((15 - timeLeft) / 15 * 100) + '%';
     }
 
-    if (timeLeft < 0) {
+    console.log('⏳ Countdown:', timeLeft);
+
+    if (timeLeft <= 0) {
+      console.log('🏁 Countdown finished, calling checkAndShowResults()');
       clearInterval(interval);
       checkAndShowResults();
     }
@@ -218,7 +221,7 @@ async function checkAndShowResults() {
 
     const data = await response.json();
     console.log('✅ API response:', data);
-    console.log('🔍 showResults called with data:', data); // DEBUG LOG
+    console.log('🔍 showResults called with data:', data);
 
     showResults(data, params);
   } catch (error) {
@@ -233,7 +236,7 @@ async function checkAndShowResults() {
 }
 
 function showResults(sites, params) {
-  console.log('🎯 showResults function executing with:', { sites, params }); // DEBUG LOG
+  console.log('🎯 showResults function executing with:', { sites, params });
   
   const resultsSection = document.getElementById('resultsSection');
   if (!resultsSection) {
