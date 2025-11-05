@@ -14,7 +14,6 @@ async function loadSitesDatabase() {
   }
 }
 
-
 // Generate Captcha
 function generateCaptcha() {
   const num1 = Math.floor(Math.random() * 20);
@@ -71,7 +70,7 @@ function confirmAge(isAdult) {
     showAdSpace();
   } else {
     alert('❌ You must be 18+ to view this content.');
-    window.location.href = 'https://t.me/YOUR_BOT_USERNAME_HERE';
+    window.location.href = 'https://t.me/GetYour_ContentSites_bot';
   }
 }
 
@@ -219,6 +218,7 @@ async function checkAndShowResults() {
 
     const data = await response.json();
     console.log('✅ API response:', data);
+    console.log('🔍 showResults called with data:', data); // DEBUG LOG
 
     showResults(data, params);
   } catch (error) {
@@ -233,6 +233,8 @@ async function checkAndShowResults() {
 }
 
 function showResults(sites, params) {
+  console.log('🎯 showResults function executing with:', { sites, params }); // DEBUG LOG
+  
   const resultsSection = document.getElementById('resultsSection');
   if (!resultsSection) {
     console.error('❌ Results section not found');
@@ -241,7 +243,8 @@ function showResults(sites, params) {
 
   let resultsHtml = `<h1>📺 Results for: <strong>${params.query}</strong></h1><div class="results-container">`;
 
-  if (sites.legal.length > 0) {
+  if (sites.legal && sites.legal.length > 0) {
+    console.log('✅ Showing', sites.legal.length, 'legal sources');
     resultsHtml += '<div class="results-group"><h2>✅ Legal Sources (' + sites.legal.length + ')</h2><div>';
     resultsHtml += sites.legal.map(site => {
       const searchUrl = buildSearchUrl(site.url, params.query);
@@ -255,7 +258,8 @@ function showResults(sites, params) {
     resultsHtml += '</div></div>';
   }
 
-  if (sites.illegal.length > 0) {
+  if (sites.illegal && sites.illegal.length > 0) {
+    console.log('⚠️ Showing', sites.illegal.length, 'illegal sources');
     resultsHtml += '<div class="results-group"><h2>⚠️ Illegal Sources (' + sites.illegal.length + ')</h2><div>';
     resultsHtml += sites.illegal.map(site => {
       const searchUrl = buildSearchUrl(site.url, params.query);
@@ -270,7 +274,8 @@ function showResults(sites, params) {
   }
 
   const isAdultCategory = needsAgeVerification(params.category);
-  if (sites.adult.length > 0 && isAdultCategory) {
+  if (sites.adult && sites.adult.length > 0 && isAdultCategory) {
+    console.log('🔞 Showing', sites.adult.length, 'adult sources');
     resultsHtml += '<div class="results-group"><h2>🔞 Adult Sources (' + sites.adult.length + ')</h2><div>';
     resultsHtml += sites.adult.map(site => {
       if (site.type === 'name_only' || !site.url) {
@@ -291,14 +296,17 @@ function showResults(sites, params) {
     resultsHtml += '</div></div>';
   }
 
-  const hasResults = sites.legal.length > 0 || sites.illegal.length > 0 || sites.adult.length > 0;
+  const hasResults = (sites.legal && sites.legal.length > 0) || (sites.illegal && sites.illegal.length > 0) || (sites.adult && sites.adult.length > 0);
   if (!hasResults) {
+    console.warn('❌ No results found');
     resultsHtml += '<div class="no-results">😕 No available sources found for: <strong>' + params.query + '</strong></div>';
   }
 
-  resultsHtml += '</div><div class="footer"><p>🔙 <a href="https://t.me/YOUR_BOT_USERNAME_HERE">Back to Telegram Bot</a></p></div>';
+  resultsHtml += '</div><div class="footer"><p>🔙 <a href="https://t.me/GetYour_ContentSites_bot">Back to Telegram Bot</a></p></div>';
 
+  console.log('📝 Setting HTML to resultsSection');
   resultsSection.innerHTML = resultsHtml;
+  console.log('✅ Results displayed successfully');
 }
 
 // Main initialization
