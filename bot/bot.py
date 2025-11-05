@@ -2,9 +2,6 @@ import logging
 import urllib.parse
 import json
 import os
-import asyncio
-import requests
-from bs4 import BeautifulSoup
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from dotenv import load_dotenv
@@ -41,8 +38,6 @@ CATEGORY_MAP = {
     'cartoon': '📺 Cartoon',
     'anime': '🎌 Anime',
     'games': '🎮 Games',
-    'books': '📚 Books',
-    'music': '🎵 Music',
     'desi_webseries': '🔞 Desi Series',
     'hentai': '🔞 Hentai',
     'jav': '🔞 JAV',
@@ -53,11 +48,6 @@ CATEGORY_MAP = {
 # Adult categories that require 18+ verification
 ADULT_CATEGORIES = {
     'hentai', 'jav', 'adult', 'onlyfans_leak', 'desi_webseries'
-}
-
-# Headers to avoid blocking
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -91,7 +81,7 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Save query in context
     context.user_data['search_query'] = query
 
-    # Create category buttons with better layout
+    # Create category buttons - NO BOOKS OR MUSIC
     keyboard = [
         [
             InlineKeyboardButton("🎬 Live Action", callback_data='cat_live_action'),
@@ -100,10 +90,6 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         [
             InlineKeyboardButton("🎌 Anime", callback_data='cat_anime'),
             InlineKeyboardButton("🎮 Games", callback_data='cat_games')
-        ],
-        [
-            InlineKeyboardButton("📚 Books", callback_data='cat_books'),
-            InlineKeyboardButton("🎵 Music", callback_data='cat_music')
         ],
         [
             InlineKeyboardButton("🔞 Desi Series", callback_data='cat_desi_webseries'),
@@ -129,70 +115,20 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     )
     logger.info(f"User {update.effective_user.id} searched for: {query}")
 
-async def scrape_site(site, query):
-    """Scrape a single site for content."""
-    try:
-        if not site.get('url'):
-            return None
-
-        url = site['url']
-
-        # Build search URL
-        if url.endswith('='):
-            search_url = url + urllib.parse.quote(query)
-        elif url.endswith('/'):
-            search_url = url + urllib.parse.quote(query)
-        else:
-            search_url = url + urllib.parse.quote(query)
-
-        # Make request with timeout
-        response = requests.get(search_url, headers=HEADERS, timeout=5)
-        response.raise_for_status()
-
-        # Parse HTML
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Check if results found (basic check - look for common result indicators)
-        if soup.find(['div', 'a', 'article']):
-            return {
-                'name': site['name'],
-                'url': search_url,
-                'found': True
-            }
-        return None
-
-    except requests.exceptions.Timeout:
-        logger.warning(f"Timeout scraping {site['name']}")
-        return None
-    except requests.exceptions.ConnectionError:
-        logger.warning(f"Connection error for {site['name']}")
-        return None
-    except Exception as e:
-        logger.warning(f"Error scraping {site['name']}: {str(e)}")
-        return None
-
-async def search_all_sites(sites_list, query):
-    """Search all sites concurrently."""
-    tasks = [scrape_site(site, query) for site in sites_list]
-    results = await asyncio.gather(*tasks)
-    return [r for r in results if r is not None]
-
 async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle category selection and search with improved UI."""
+    """Handle category selection."""
     query_data = update.callback_query.data
     search_query = context.user_data.get('search_query', 'Unknown')
 
     # Parse category
     category = query_data.replace('cat_', '')
 
-    # Get default subcategory based on category
+    # Get default subcategory
     subcategory_map = {
         'live_action': 'movies',
         'cartoon': 'movies',
         'anime': 'movies',
         'games': 'classic',
-        'books': 'fiction',
-        'music': 'songs',
         'desi_webseries': 'movies',
         'hentai': 'movies',
         'jav': 'actress',
@@ -202,12 +138,12 @@ async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     subcategory = subcategory_map.get(category, 'movies')
 
-    # Send searching message with loading animation
+    # Send searching message
     searching_msg = await update.callback_query.edit_message_text(
         f'🔄 <b>Searching...</b>\n\n'
         f'🔍 Query: <code>{search_query}</code>\n'
         f'📂 Category: <b>{CATEGORY_MAP.get(category, category)}</b>\n\n'
-        f'⏳ Please wait, scanning sources...\n'
+        f'⏳ Preparing results...\n'
         f'━━━━━━━━━━━━━━━━━━',
         parse_mode='HTML'
     )
@@ -229,57 +165,52 @@ async def category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         illegal_sites = sub_data.get('illegal', [])
         adult_sites = sub_data.get('adult', [])
 
-        # Search all sites concurrently
-        legal_results = await search_all_sites(legal_sites, search_query)
-        illegal_results = await search_all_sites(illegal_sites, search_query)
-        adult_results = await search_all_sites(adult_sites, search_query)
-
-        # Count results found
-        total_results = len(legal_results) + len(illegal_results) + len(adult_results)
+        # Count total results
+        total_results = len(legal_sites) + len(illegal_sites) + len(adult_sites)
 
         if total_results == 0:
             await searching_msg.edit_text(
                 f'😕 <b>No sources found</b>\n\n'
                 f'🔍 <b>Query:</b> <code>{search_query}</code>\n'
                 f'📂 <b>Category:</b> {CATEGORY_MAP.get(category, category)}\n\n'
-                f'💡 Try a different search term or category.\n'
+                f'💡 Try a different category.\n'
                 f'━━━━━━━━━━━━━━━━━━',
                 parse_mode='HTML'
             )
             return
 
-        # Build results message with better formatting
+        # Build website link
         is_adult = category in ADULT_CATEGORIES
         encoded_query = urllib.parse.quote(search_query)
         website_link = (
-            f"{WEBSITE_URL}/?q={encoded_query}&category={category}"
+            f"{WEBSITE_URL}?q={encoded_query}&category={category}"
             f"&subcategory={subcategory}&adult={str(is_adult).lower()}"
         )
 
-        # Create result statistics
+        # Create results message
         results_text = (
             f'✅ <b>Found {total_results} Source(s)</b>\n\n'
             f'🔍 <b>Query:</b> <code>{search_query}</code>\n'
             f'📂 <b>Category:</b> {CATEGORY_MAP.get(category, category)}\n'
             f'━━━━━━━━━━━━━━━━━━\n\n'
             f'📊 <b>Results Breakdown:</b>\n'
-            f'  ✅ Legal: {len(legal_results)}\n'
-            f'  ⚠️ Illegal: {len(illegal_results)}\n'
+            f'  ✅ Legal: {len(legal_sites)}\n'
+            f'  ⚠️ Illegal: {len(illegal_sites)}\n'
         )
 
-        if is_adult and adult_results:
-            results_text += f'  🔞 Adult: {len(adult_results)}\n'
+        if is_adult and adult_sites:
+            results_text += f'  🔞 Adult: {len(adult_sites)}\n'
 
         results_text += (
             f'\n━━━━━━━━━━━━━━━━━━\n'
-            f'⏳ <i>Redirect in 15 seconds...</i>'
+            f'👇 Click below to view results'
         )
 
-        # Create inline button for website link
+        # Create button
         keyboard = [[InlineKeyboardButton("🔗 View Full Results", url=website_link)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # Update message with results summary and clickable button
+        # Update message
         await searching_msg.edit_text(
             results_text,
             reply_markup=reply_markup,

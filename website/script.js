@@ -1,16 +1,16 @@
-// Load sites database
+// Load sites database from local JSON
 let sitesDatabase = {};
 let captchaCorrectAnswer = 0;
 
-// API URL - Change this when deploying
-const API_URL = "https://telegram-content-bot-backend.onrender.com"
-
 async function loadSitesDatabase() {
   try {
-    console.log('✅ Using backend API for sites database');
-    // Don't load local sites.json - backend API will handle it
+    console.log('📂 Loading sites from local JSON...');
+    const response = await fetch('../database/sites.json');
+    sitesDatabase = await response.json();
+    console.log('✅ Sites database loaded locally');
+    console.log('📋 Available categories:', Object.keys(sitesDatabase).join(', '));
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error loading sites.json:', error);
   }
 }
 
@@ -35,7 +35,6 @@ function verifyCaptcha() {
     console.log('✅ Captcha verified correctly');
     document.getElementById('captchaModal').style.display = 'none';
 
-    // Check if need age verification
     const params = getUrlParams();
     if (needsAgeVerification(params.category)) {
       console.log('⚠️ Showing age verification');
@@ -130,7 +129,7 @@ function startCountdown() {
     console.log('⏳ Countdown:', timeLeft);
 
     if (timeLeft <= 0) {
-      console.log('🏁 Countdown finished, calling checkAndShowResults()');
+      console.log('🏁 Countdown finished, showing results');
       clearInterval(interval);
       checkAndShowResults();
     }
@@ -178,8 +177,8 @@ function buildSearchUrl(siteUrl, query) {
   return url;
 }
 
-// Call backend API to get filtered sites
-async function checkAndShowResults() {
+// Get sites locally from loaded database
+function checkAndShowResults() {
   const params = getUrlParams();
 
   const resultsSection = document.getElementById('resultsSection');
@@ -188,55 +187,62 @@ async function checkAndShowResults() {
     return;
   }
 
-  // Show loading message
-  resultsSection.innerHTML = `
-    <div class="countdown-container">
-      <div class="countdown-box">
-        <h2>🔍 Checking sources...</h2>
-        <p>Please wait while we verify available sites</p>
-      </div>
-    </div>
-  `;
+  console.log('🔍 Getting sites from local database for:', params.category);
 
   try {
-    // Call backend API
-    console.log('📡 Calling API:', API_URL + '/api/search');
-
-    const response = await fetch(API_URL + '/api/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        query: params.query,
-        category: params.category,
-        subcategory: params.subcategory,
-        adult: params.isAdult
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('API error: ' + response.statusText);
+    // Get category data
+    const categoryData = sitesDatabase[params.category];
+    if (!categoryData) {
+      console.log('❌ Category not found:', params.category);
+      resultsSection.innerHTML = '<div class="no-results">❌ Category not found</div>';
+      return;
     }
 
-    const data = await response.json();
-    console.log('✅ API response:', data);
-    console.log('🔍 showResults called with data:', data);
+    // Get subcategory data
+    const defaultSubcategory = {
+      'live_action': 'movies',
+      'cartoon': 'movies',
+      'anime': 'movies',
+      'games': 'classic',
+      'desi_webseries': 'movies',
+      'hentai': 'movies',
+      'jav': 'actress',
+      'onlyfans_leak': 'creator',
+      'adult': 'movies'
+    }[params.category] || 'movies';
+
+    const subcategory = (params.subcategory !== 'all' && categoryData[params.subcategory]) 
+      ? params.subcategory 
+      : defaultSubcategory;
+
+    const sourceData = categoryData[subcategory];
+    if (!sourceData) {
+      console.log('❌ Subcategory not found:', subcategory);
+      resultsSection.innerHTML = '<div class="no-results">❌ Subcategory not found</div>';
+      return;
+    }
+
+    const legalSites = sourceData.legal || [];
+    const illegalSites = sourceData.illegal || [];
+    const adultSites = params.isAdult ? sourceData.adult || [] : [];
+
+    console.log('✅ Found:', legalSites.length, 'legal,', illegalSites.length, 'illegal sites');
+
+    const data = {
+      legal: legalSites,
+      illegal: illegalSites,
+      adult: adultSites
+    };
 
     showResults(data, params);
   } catch (error) {
-    console.error('❌ API error:', error);
-    resultsSection.innerHTML = `
-      <div class="no-results">
-        ❌ Error checking sources: ${error.message}
-        <br><small>Make sure backend API is running</small>
-      </div>
-    `;
+    console.error('❌ Error:', error);
+    resultsSection.innerHTML = '<div class="no-results">❌ Error loading results: ' + error.message + '</div>';
   }
 }
 
 function showResults(sites, params) {
-  console.log('🎯 showResults function executing with:', { sites, params });
+  console.log('🎯 Showing results with:', sites);
   
   const resultsSection = document.getElementById('resultsSection');
   if (!resultsSection) {
@@ -301,13 +307,11 @@ function showResults(sites, params) {
 
   const hasResults = (sites.legal && sites.legal.length > 0) || (sites.illegal && sites.illegal.length > 0) || (sites.adult && sites.adult.length > 0);
   if (!hasResults) {
-    console.warn('❌ No results found');
     resultsHtml += '<div class="no-results">😕 No available sources found for: <strong>' + params.query + '</strong></div>';
   }
 
   resultsHtml += '</div><div class="footer"><p>🔙 <a href="https://t.me/GetYour_ContentSites_bot">Back to Telegram Bot</a></p></div>';
 
-  console.log('📝 Setting HTML to resultsSection');
   resultsSection.innerHTML = resultsHtml;
   console.log('✅ Results displayed successfully');
 }
@@ -331,13 +335,11 @@ async function init() {
     return;
   }
 
-  // Hide everything first
   captchaModal.style.display = 'none';
   ageModal.style.display = 'none';
   adSection.style.display = 'none';
   resultsSection.style.display = 'none';
 
-  // Show captcha
   console.log('🔐 Showing captcha');
   captchaModal.style.display = 'flex';
   generateCaptcha();
@@ -348,7 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
   console.log('✅ DOM loaded');
   init();
 
-  // Captcha input Enter key
   const captchaInput = document.getElementById('captchaAnswer');
   if (captchaInput) {
     captchaInput.addEventListener('keypress', function(e) {
