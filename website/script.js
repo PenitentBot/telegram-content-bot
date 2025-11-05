@@ -3,7 +3,7 @@ let sitesDatabase = {};
 let captchaCorrectAnswer = 0;
 
 // API URL - Change this when deploying
-const API_URL = 'http://localhost:5000'; // Change to your deployed URL
+const API_URL = "https://telegram-content-bot-backend.onrender.com"
 
 async function loadSitesDatabase() {
   try {
