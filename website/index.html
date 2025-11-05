@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Finder - Results</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Captcha Modal -->
+  <div class="modal" id="captchaModal" style="display: none;">
+    <div class="modal-content captcha-content">
+      <h2>🔐 Verify You're Human</h2>
+      <p>Solve this simple math problem:</p>
+
+      <div class="captcha-box">
+        <div class="math-problem">
+          <span id="num1">0</span> + <span id="num2">0</span> = ?
+        </div>
+        <input type="number" id="captchaAnswer" placeholder="Enter answer" autocomplete="off" />
+        <button onclick="verifyCaptcha()">Verify</button>
+        <div id="captchaError" class="error" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Age Verification Modal -->
+  <div class="modal" id="ageModal" style="display: none;">
+    <div class="modal-content age-content">
+      <h2>⚠️ Age Verification</h2>
+      <p>This content is for adults only (18+).</p>
+      <p>Are you 18 years or older?</p>
+
+      <div class="button-group">
+        <button class="btn btn-yes" onclick="confirmAge(true)">✅ Yes, I'm 18+</button>
+        <button class="btn btn-no" onclick="confirmAge(false)">❌ No, I'm not</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container">
+    <!-- Ad Space Section -->
+    <div id="adSection" style="display: none;">
+      <div class="ad-space-large">
+        <h3>📢 Advertisement</h3>
+        <p>Your ad space here</p>
+        <div class="ad-placeholder">
+          <p>Ad Network: Google AdSense / Your Custom Ads</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-section" id="resultsSection" style="display: none;">
+      <!-- Content will be added by JavaScript -->
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
