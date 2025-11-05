@@ -93,8 +93,6 @@ function buildSearchUrl(siteUrl, query) {
 
 // Filter sites - NO URL CHECKING, JUST RETURN ALL
 function filterSites(sites, query) {
-  // Simply return all sites without checking if URLs work
-  // This is much faster!
   return sites.map(site => ({
     name: site.name,
     url: site.url ? buildSearchUrl(site.url, query) : null,
@@ -102,4 +100,100 @@ function filterSites(sites, query) {
   })).filter(site => site.url || site.type === 'name_only');
 }
 
-// API
+// API Endpoint: Search
+app.post('/api/search', (req, res) => {
+  try {
+    const { query, category = 'live_action', subcategory = 'all', adult = false } = req.body;
+
+    console.log(`🔍 Searching: ${query} | Category: ${category} | Subcategory: ${subcategory}`);
+
+    // Validate category
+    if (!SUPPORTED_CATEGORIES.includes(category)) {
+      console.log(`❌ Category not supported: ${category}`);
+      return res.status(400).json({ error: 'Category not supported', category });
+    }
+
+    // Get category data
+    const categoryData = sitesDB[category];
+    if (!categoryData) {
+      console.log(`❌ Category data not found: ${category}`);
+      return res.json({ legal: [], illegal: [], adult: [] });
+    }
+
+    // Get subcategory data
+    let sourceData = null;
+    const defaultSubcategory = DEFAULT_SUBCATEGORIES[category] || 'movies';
+
+    if (subcategory !== 'all' && categoryData[subcategory]) {
+      sourceData = categoryData[subcategory];
+      console.log(`📂 Using requested subcategory: ${subcategory}`);
+    } else if (categoryData[defaultSubcategory]) {
+      sourceData = categoryData[defaultSubcategory];
+      console.log(`📂 Using default subcategory: ${defaultSubcategory}`);
+    } else {
+      const keys = Object.keys(categoryData);
+      if (keys.length > 0) {
+        sourceData = categoryData[keys[0]];
+        console.log(`📂 Using first available subcategory: ${keys[0]}`);
+      } else {
+        console.log(`❌ No subcategories found for ${category}`);
+        return res.json({ legal: [], illegal: [], adult: [] });
+      }
+    }
+
+    // Filter sites - INSTANT RESPONSE
+    console.log('📤 Returning all available sites...');
+    const legalSites = filterSites(sourceData.legal || [], query);
+    const illegalSites = filterSites(sourceData.illegal || [], query);
+    const adultSites = adult ? filterSites(sourceData.adult || [], query) : [];
+
+    console.log(`✅ Found: ${legalSites.length} legal, ${illegalSites.length} illegal, ${adultSites.length} adult`);
+
+    res.json({
+      legal: legalSites,
+      illegal: illegalSites,
+      adult: adultSites
+    });
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API Endpoint: Get categories
+app.get('/api/categories', (req, res) => {
+  res.json({
+    supported: SUPPORTED_CATEGORIES,
+    defaults: DEFAULT_SUBCATEGORIES,
+    total: SUPPORTED_CATEGORIES.length
+  });
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date(),
+    categories: Object.keys(sitesDB).length,
+    supported: SUPPORTED_CATEGORIES
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server error:', err);
+  res.status(500).json({ error: err.message });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Node.js API running on port ${PORT}`);
+  console.log(`📍 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`📂 Categories: http://localhost:${PORT}/api/categories`);
+  console.log(`📋 Supported categories: ${SUPPORTED_CATEGORIES.join(', ')}`);
+});
