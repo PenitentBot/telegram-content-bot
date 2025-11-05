@@ -1,2 +1,2 @@
-web: cd backend && npm install && node api.js
+web: node api.js
 
