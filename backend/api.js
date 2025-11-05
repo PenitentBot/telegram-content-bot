@@ -12,14 +12,26 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Load sites database from parent directory
+// Load sites database - FIXED PATH
 let sitesDB = {};
 try {
-const dbPath = path.join(__dirname, '..', 'database', 'sites.json');
-  const data = fs.readFileSync(dbPath, 'utf8');
-  sitesDB = JSON.parse(data);
-  console.log('✅ Sites database loaded');
-  console.log('📋 Available categories:', Object.keys(sitesDB).join(', '));
+  let dbPath = path.join(__dirname, 'sites.json');
+  
+  // If not found, try parent directory
+  if (!fs.existsSync(dbPath)) {
+    dbPath = path.join(__dirname, '..', 'database', 'sites.json');
+  }
+  
+  console.log('📂 Looking for sites.json at:', dbPath);
+  
+  if (fs.existsSync(dbPath)) {
+    const data = fs.readFileSync(dbPath, 'utf8');
+    sitesDB = JSON.parse(data);
+    console.log('✅ Sites database loaded');
+    console.log('📋 Available categories:', Object.keys(sitesDB).join(', '));
+  } else {
+    console.warn('⚠️ sites.json not found, using empty database');
+  }
 } catch (error) {
   console.error('❌ Error loading sites.json:', error.message);
 }
